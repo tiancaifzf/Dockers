@@ -7,9 +7,9 @@ RUN apk update \
 
 RUN mkdir /ssr \
     && cd /ssr \
-    && wget --no-check-certificate https://github.com/breakwa11/shadowsocks/archive/manyuser.zip -O /tmp/manyuser.zip \
+    && wget --no-check-certificate https://github.com/shadowsocksr/shadowsocksr/archive/manyuser.zip -O /tmp/manyuser.zip \
     && unzip -d /tmp /tmp/manyuser.zip \
-    && mv /tmp/shadowsocks-manyuser/shadowsocks /ssr/shadowsocks \
+    && mv /tmp/shadowsocksr-manyuser/shadowsocks /ssr/shadowsocks \
     && rm -rf /tmp/*
 
 ADD shadowsocks.json /etc/shadowsocks.json
@@ -18,7 +18,7 @@ RUN \
     apk add --no-cache --virtual .build-deps curl \
     && mkdir -p /opt/kcptun \
     && cd /opt/kcptun \
-    && curl -fSL https://github.com/xtaci/kcptun/releases/download/v20161118/kcptun-linux-amd64-20161118.tar.gz | tar xz \
+    && curl -fSL https://github.com/xtaci/kcptun/releases/download/v20170221/kcptun-linux-amd64-20170221.tar.gz | tar xz \
     && rm client_linux_amd64 \
     && cd ~ \
     && apk del .build-deps \

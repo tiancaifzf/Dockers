@@ -14,7 +14,7 @@
   "password": "shadowsocksPassword",
   "timeout": 120,
   "udp_timeout": 60,
-  "method": "chacha20",
+  "method": "chacha20-ietf",
   "protocol": "auth_sha1_v2",
   "protocol_param": "",
   "obfs": "tls1.2_ticket_auth",
