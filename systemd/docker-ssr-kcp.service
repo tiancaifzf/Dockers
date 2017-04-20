@@ -1,0 +1,19 @@
+# /etc/systemd/system/docker-ssr-kcp.service
+#  This file is example of Container of SSR-KCP-SERVER.
+
+[Unit]
+Description=Container of SSR-KCP-SERVER
+Requires=docker.service
+After=network.target
+After=docker.service
+
+[Service]
+Type=simple
+Restart=always
+ExecStartPre=-/usr/bin/docker kill SSR
+ExecStartPre=/usr/bin/docker pull chenhw2/ssr-kcp-server
+ExecStart=/usr/bin/docker run --rm --name SSR -e 'SSR_PASS=PASSSSR' -e 'KCP_PASS=PASSKCP' -p 8300:8300/tcp -p 8300:8300/udp -p 8311:8311/tcp -p 8311:8311/udp -p 8322:8322/tcp -p 8322:8322/udp -p 8344:8344/tcp -p 8344:8344/udp -p 8355:8355/tcp -p 8355:8355/udp -p 18300:18300/udp -p 18311:18311/udp -p 18322:18322/udp -p 18344:18344/udp -p 18355:18355/udp chenhw2/ssr-kcp-server
+ExecStop=-/usr/bin/docker kill SSR
+
+[Install]
+WantedBy=multi-user.target

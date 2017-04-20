@@ -1,34 +1,40 @@
 FROM alpine:edge
 MAINTAINER CHENHW2 <https://github.com/chenhw2>
 
-RUN apk update \
-    && apk add python libsodium unzip wget \
+ENV RUN_ROOT=/ssr
+ARG SSR_URL=https://github.com/shadowsocksr/shadowsocksr/archive/3.1.2.tar.gz
+ARG KCP_URL=https://github.com/xtaci/kcptun/releases/download/v20170329/kcptun-linux-amd64-20170329.tar.gz
+ARG TZ=Asia/Hong_Kong
+
+RUN apk add --update --no-cache python libsodium wget supervisor ca-certificates tzdata \
+    && update-ca-certificates \
+    && ln -sf /usr/share/zoneinfo/$TZ /etc/localtime \
     && rm -rf /var/cache/apk/*
 
-RUN mkdir /ssr \
-    && cd /ssr \
-    && wget --no-check-certificate https://github.com/shadowsocksr/shadowsocksr/archive/manyuser.zip -O /tmp/manyuser.zip \
-    && unzip -d /tmp /tmp/manyuser.zip \
-    && mv /tmp/shadowsocksr-manyuser/shadowsocks /ssr/shadowsocks \
-    && rm -rf /tmp/*
+# /ssr/shadowsocks/server.py
+RUN mkdir -p ${RUN_ROOT} \
+    && cd ${RUN_ROOT} \
+    && wget -qO- ${SSR_URL} | tar xz \
+    && mv shadowsocksr-*/shadowsocks shadowsocks \
+    && rm -rf shadowsocksr-*
 
-ADD shadowsocks.json /etc/shadowsocks.json
+# /ssr/kcptun/server
+RUN mkdir -p ${RUN_ROOT}/kcptun \
+    && cd ${RUN_ROOT}/kcptun \
+    && wget -qO- ${KCP_URL} | tar xz \
+    && rm client_* \
+    && mv server_* server
 
-RUN \
-    apk add --no-cache --virtual .build-deps curl \
-    && mkdir -p /opt/kcptun \
-    && cd /opt/kcptun \
-    && curl -fSL https://github.com/xtaci/kcptun/releases/download/v20170221/kcptun-linux-amd64-20170221.tar.gz | tar xz \
-    && rm client_linux_amd64 \
-    && cd ~ \
-    && apk del .build-deps \
-    && apk add --no-cache supervisor
+ENV SSR_PASS=SSRPassword \
+    SSR_OBFS=tls1.2_ticket_auth \
+    SSR_OBFS_PARAM=bing.com \
+    SSR_METHOD=chacha20-ietf
 
-ADD kcptun.json /etc/kcptun.json
+ENV KCP_PASS=KCPPassword \
+    KCP_MODE=fast2 \
+    KCP_CRYPT=salsa20
 
-COPY supervisord.conf /etc/supervisord.conf
+ADD entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-ADD start.sh /start.sh
-RUN chmod +x /start.sh
-
-ENTRYPOINT ["/start.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
