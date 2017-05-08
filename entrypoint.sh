@@ -6,7 +6,7 @@ cmd_conf="${root_dir}/_supervisord.conf"
 
 cmdArgs="$*"
 if [ -n "$cmdArgs" ]; then
-  ( ${root_dir}/${cmdArgs} ) || echo "choose [frps] or [frpc] to run"
+  ( ${root_dir}/${cmdArgs} ) || echo "choose [server] or [client] to run"
   exit 0
 fi
 
@@ -21,7 +21,7 @@ cat > ${cmd_conf} <<EOF
 nodaemon=true
 
 [program:frp]
-command=${root_dir}/${Args} -c ${root_dir}/conf/${Args}.conf
+command=${root_dir}/${Args} -c ${root_dir}/conf/${Args}.ini
 autorestart=true
 redirect_stderr=true
 stdout_logfile=/dev/stdout
