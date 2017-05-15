@@ -2,29 +2,28 @@
 set -e
 
 if [ "$*" == "gencert" ]; then
-
   /gencert.sh
   exit 0
-
 fi
+
+: ${TAP_NET:='192.168.33'}
+: ${TAP_DNS:='8.8.8.8,8.8.4.4'}
 
 if [ ! -f /opt/vpn_server.config ]; then
 
 : ${PSK:='notasecret'}
 
 printf '# '
-printf '=%.0s' {1..24}
+printf '=%.0s' {1..32}
 echo
 
-if [[ $USERS ]]
-then
+if [[ $USERS ]]; then
   echo '# <use the password specified at -e USERS>'
 else
   : ${USERNAME:=user$(cat /dev/urandom | tr -dc '0-9' | fold -w 4 | head -n 1)}
   echo \# ${USERNAME}
 
-  if [[ $PASSWORD ]]
-  then
+  if [[ $PASSWORD ]]; then
     echo '# <use the password specified at -e PASSWORD>'
   else
     PASSWORD=$(cat /dev/urandom | tr -dc '0-9' | fold -w 20 | head -n 1 | sed 's/.\{4\}/&./g;s/.$//;')
@@ -54,8 +53,9 @@ done
 # enable L2TP_IPsec
 /opt/vpncmd localhost /SERVER /CSV /CMD IPsecEnable /L2TP:yes /L2TPRAW:yes /ETHERIP:no /PSK:${PSK} /DEFAULTHUB:DEFAULT
 
-# enable SecureNAT
-/opt/vpncmd localhost /SERVER /CSV /HUB:DEFAULT /CMD SecureNatEnable
+# disable SecureNAT
+/opt/vpncmd localhost /SERVER /CSV /HUB:DEFAULT /CMD SecureNatDisable
+/opt/vpncmd localhost /SERVER /CSV /CMD BridgeCreate /DEVICE:"soft" /TAP:yes DEFAULT 2>&1 > /dev/null
 
 # enable OpenVPN
 /opt/vpncmd localhost /SERVER /CSV /CMD OpenVpnEnable yes /PORTS:1194
@@ -149,4 +149,30 @@ if [[ -d "/opt/scripts/" ]]; then
   done < <(find /opt/scripts/ -type f -iname "*.sh")
 fi
 
-exec "$@"
+/opt/vpnserver start 2>&1 > /dev/null
+
+while : ; do
+  set +e
+  ifconfig tap_soft ${TAP_NET}.1 2>&1 > /dev/null 2>&1 > /dev/null
+  [[ $? -eq 0 ]] && break
+  set -e
+  sleep 1
+done
+
+iptables -t nat -A POSTROUTING -s ${TAP_NET}.0/24 -j MASQUERADE
+
+# [ "Z$(sysctl net.ipv4.ip_forward 2>&1 > /dev/null | sed 's/.*\(.$\)/\1/g')" == "Z1" ] \
+#  || [ sysctl -w net.ipv4.ip_forward=1 2>&1 > /dev/null ] \
+#  || echo "Need [sysctl -w net.ipv4.ip_forward=1]"
+
+echo \# [Server OK]
+
+cat > /etc/dnsmasq.conf <<EOF
+interface=tap_soft
+dhcp-range=tap_soft,${TAP_NET}.50,${TAP_NET}.90,12h
+dhcp-option=tap_soft,3,${TAP_NET}.1
+dhcp-option=option:dns-server,${TAP_DNS}
+port=0
+EOF
+
+dnsmasq -k
