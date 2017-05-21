@@ -25,14 +25,13 @@ RUN mkdir -p ${RUN_ROOT}/kcptun \
     && rm client_* \
     && mv server_* server
 
-ENV SSR_PASS=SSRPassword \
-    SSR_OBFS=tls1.2_ticket_auth \
-    SSR_OBFS_PARAM=bing.com \
-    SSR_METHOD=chacha20-ietf
+ENV SSR=ssr://origin:aes-256-cfb:plain:12345678 \
+    SSR_OBFS_PARAM=bing.com
 
-ENV KCP_PASS=KCPPassword \
-    KCP_MODE=fast2 \
-    KCP_CRYPT=salsa20
+ENV KCP=kcp://fast2:aes: \
+    KCP_EXTRA_ARGS=''
+
+EXPOSE 8388/tcp 8388/udp 18388/udp
 
 ADD entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

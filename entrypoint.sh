@@ -1,48 +1,57 @@
 #!/bin/sh
 
-SSR_PASS=${SSR_PASS:-SSRPassword}
-SSR_METHOD=${SSR_METHOD:-chacha20-ietf}
-SSR_OBFS=${SSR_OBFS:-tls1.2_ticket_auth}
-SSR_OBFS_PARAM=${SSR_OBFS_PARAM:-bing.com}
+# ssr://protocol:method:obfs:pass
+# SSR=${SSR:-ssr://origin:aes-256-cfb:plain:12345678}
+# SSR_OBFS_PARAM=${SSR_OBFS_PARAM:-bing.com}
 
-KCP_PASS=${KCP_PASS:-KCPPassword}
-KCP_MODE=${KCP_MODE:-fast2}
-KCP_CRYPT=${KCP_CRYPT:-salsa20}
+# kcp://mode:crypt:key
+# KCP=${KCP:-kcp://fast2:aes:}
+# KCP_EXTRA_ARGS=${KCP_EXTRA_ARGS:-''}
+
+echo "#CONFIG: ${SSR} ${SSR_OBFS_PARAM}"
+echo "#CONFIG: ${KCP} ${KCP_EXTRA_ARGS}"
+echo '=================================================='
+echo
 
 # Path Init
 root_dir=${RUN_ROOT:-'/ssr'}
 ssr_cli="${root_dir}/shadowsocks/server.py"
 kcp_cli="${root_dir}/kcptun/server"
 ssr_conf="${root_dir}/_shadowsocksr.json"
-kcp_conf="${root_dir}/_kcptun.json"
 cmd_conf="${root_dir}/_supervisord.conf"
+ssr_port=8388
 
 # Gen ssr_conf
-cat > ${ssr_conf} <<EOF
+ssr2json(){
+  ssr=$1
+  ssr_obfs_param=$2
+  json='"protocol": "\1",\n "method": "\2",\n "obfs": "\3",\n "password": "\4"'
+  cfg=$(echo ${ssr} | sed -n "s#ssr://\([^:]*\):\([^:]*\):\([^:]*\):\([^:]*\).*#${json}#p")
+  cat <<EOF
 {
-  "port_password":{
-    "8300":{"protocol":"origin", "obfs": "plain"},
-    "8322":{"protocol":"auth_sha1_v2"},
-    "8344":{"protocol":"auth_sha1_v4"},
-    "8355":{"protocol":"auth_aes128_md5"},
-    "8311":{"protocol":"auth_aes128_sha1"}
-  },
-  "password": "${SSR_PASS}",
-  "method": "${SSR_METHOD}",
-  "obfs": "${SSR_OBFS}",
-  "obfs_param": "${SSR_OBFS_PARAM}",
-  "workers": 5
+ "server_port": "${ssr_port}",
+ ${cfg},
+ "obfs_param": "${ssr_obfs_param}"
 }
 EOF
+}
+
+ssr2json ${SSR} ${SSR_OBFS_PARAM} > ${ssr_conf}
+
 
 # Gen kcp_conf
-cat > ${kcp_conf} <<EOF
-{
-  "key": "${KCP_PASS}",
-  "crypt": "${KCP_CRYPT}",
-  "mode": "${KCP_MODE}"
+kcp2cmd(){
+  kcp=$1
+  kcp_extra_agrs=$2
+  cmd='--mode \1 --crypt \2'
+  cli=$(echo ${kcp} | sed "s#kcp://\([^:]*\):\([^:]*\):\([^:]*\).*#${cmd}#g")
+  key=$(echo ${kcp} | sed "s#kcp://\([^:]*\):\([^:]*\):\([^:]*\).*#\3#g")
+  [ "Z${key}" = 'Z' ] || cli=$(echo "${cli} --key ${key}")
+  echo "${cli} ${kcp_extra_agrs}"
 }
-EOF
+
+kcp_cmd=$(kcp2cmd ${KCP} ${KCP_EXTRA_ARGS})
+
 
 # Gen supervisord.conf
 cat > ${cmd_conf} <<EOF
@@ -56,16 +65,13 @@ redirect_stderr=true
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
 
-$(
-  sed -n 's/.*"\([0-9]*\)".*protocol.*/\1/p' ${ssr_conf} | sort -u |while read port; do
-    echo "[program:kcptun-${port}]"
-    echo "command=${kcp_cli} -c ${kcp_conf} -t 127.0.0.1:${port} -l :1${port}"
-    echo "autorestart=true"
-    echo "redirect_stderr=true"
-    echo "stdout_logfile=/var/log/kcptun-${port}.log"
-    echo ""
-  done
-)
+[program:kcptun]
+command=${kcp_cli} -t 127.0.0.1:${ssr_port} -l :1${ssr_port} ${kcp_cmd}
+autorestart=true
+redirect_stderr=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+
 EOF
 
 /usr/bin/supervisord -c ${cmd_conf}
