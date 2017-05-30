@@ -19,7 +19,7 @@ $ docker run -d \
 ### ENV
 ```
 # ssr://protocol:method:obfs:pass
-ENV SSR=ssr://origin:aes-256-cfb:plain:12345678
+ENV SSR=ssr://origin:aes-256-cfb:tls1.2_ticket_auth_compatible:12345678
 ENV SSR_OBFS_PARAM=bing.com
 
 # kcp://mode:crypt:key

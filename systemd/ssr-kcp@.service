@@ -1,0 +1,24 @@
+# /etc/systemd/system/ssr-kcp@8300.service
+#  This file is example systemd-Unit of Container of SSR-KCP-SERVER-LITE.
+
+[Unit]
+Description=Container of SSR-KCP-SERVER-LITE
+After=network.target docker.service
+
+[Service]
+Type=simple
+Restart=always
+ExecStartPre=/usr/sbin/iptables -I INPUT -p tcp --dport  %i -j ACCEPT
+ExecStartPre=/usr/sbin/iptables -I INPUT -p udp --dport  %i -j ACCEPT
+ExecStartPre=/usr/sbin/iptables -I INPUT -p udp --dport 1%i -j ACCEPT
+
+ExecStartPre=-/usr/bin/docker rm -f ssrl-%i
+ExecStart=/usr/bin/docker run --rm --name ssrl-%i -e "SSR=ssr://origin:aes-256-cfb:tls1.2_ticket_auth_compatible:12345678" -p %i:8388/tcp -p %i:8388/udp -p 1%i:18388/udp chenhw2/ssr-kcp-server-lite
+ExecStop=-/usr/bin/docker kill ssrl-%i
+
+ExecStopPost=-/usr/sbin/iptables -D INPUT -p tcp --dport  %i -j ACCEPT
+ExecStopPost=-/usr/sbin/iptables -D INPUT -p udp --dport  %i -j ACCEPT
+ExecStopPost=-/usr/sbin/iptables -D INPUT -p udp --dport 1%i -j ACCEPT
+
+[Install]
+WantedBy=multi-user.target

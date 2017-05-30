@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # ssr://protocol:method:obfs:pass
-# SSR=${SSR:-ssr://origin:aes-256-cfb:plain:12345678}
+# SSR=${SSR:-ssr://origin:aes-256-cfb:tls1.2_ticket_auth_compatible:12345678}
 # SSR_OBFS_PARAM=${SSR_OBFS_PARAM:-bing.com}
 
 # kcp://mode:crypt:key
@@ -25,18 +25,20 @@ ssr_port=8388
 ssr2json(){
   ssr=$1
   ssr_obfs_param=$2
+  ssr_protocol_param=$3
   json='"protocol": "\1",\n "method": "\2",\n "obfs": "\3",\n "password": "\4"'
   cfg=$(echo ${ssr} | sed -n "s#ssr://\([^:]*\):\([^:]*\):\([^:]*\):\([^:]*\).*#${json}#p")
   cat <<EOF
 {
  "server_port": "${ssr_port}",
  ${cfg},
+ "protocol_param": "${ssr_protocol_param}",
  "obfs_param": "${ssr_obfs_param}"
 }
 EOF
 }
 
-ssr2json ${SSR} ${SSR_OBFS_PARAM} > ${ssr_conf}
+ssr2json ${SSR} ${SSR_OBFS_PARAM} ${SSR_PROTOCOL_PARAM} > ${ssr_conf}
 
 
 # Gen kcp_conf
