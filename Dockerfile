@@ -2,7 +2,7 @@ FROM alpine:edge
 MAINTAINER CHENHW2 <https://github.com/chenhw2>
 
 ENV RUN_ROOT=/frp
-ARG FRP_URL=https://github.com/fatedier/frp/releases/download/v0.10.0/frp_0.10.0_linux_amd64.tar.gz
+ARG FRP_URL=https://github.com/fatedier/frp/releases/download/v0.11.0/frp_0.11.0_linux_amd64.tar.gz
 ARG TZ=Asia/Hong_Kong
 
 RUN apk add --update --no-cache wget supervisor ca-certificates tzdata \
