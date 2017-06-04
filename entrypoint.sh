@@ -1,43 +1,22 @@
 #!/bin/sh
 
-# ssr://protocol:method:obfs:pass
-# SSR=${SSR:-ssr://origin:aes-256-cfb:plain:12345678}
-# SSR_OBFS_PARAM=${SSR_OBFS_PARAM:-bing.com}
+# ss://cipher:pass
+# SS=${SS:-ss://AEAD_AES_128_GCM:12345678}
 
 # kcp://mode:crypt:key
 # KCP=${KCP:-kcp://fast2:aes:}
 # KCP_EXTRA_ARGS=${KCP_EXTRA_ARGS:-''}
 
-echo "#CONFIG: ${SSR} ${SSR_OBFS_PARAM}"
+echo "#CONFIG: ${SS}@:8488"
 echo "#CONFIG: ${KCP} ${KCP_EXTRA_ARGS}"
 echo '=================================================='
 echo
 
 # Path Init
-root_dir=${RUN_ROOT:-'/ssr'}
-ssr_cli="${root_dir}/shadowsocks/server.py"
+root_dir=${RUN_ROOT:-'/ss2'}
+ssr_cli="${root_dir}/go-ss2"
 kcp_cli="${root_dir}/kcptun/server"
-ssr_conf="${root_dir}/_shadowsocksr.json"
-cmd_conf="${root_dir}/_supervisord.conf"
-ssr_port=8388
-
-# Gen ssr_conf
-ssr2json(){
-  ssr=$1
-  ssr_obfs_param=$2
-  json='"protocol": "\1",\n "method": "\2",\n "obfs": "\3",\n "password": "\4"'
-  cfg=$(echo ${ssr} | sed -n "s#ssr://\([^:]*\):\([^:]*\):\([^:]*\):\([^:]*\).*#${json}#p")
-  cat <<EOF
-{
- "server_port": "${ssr_port}",
- ${cfg},
- "obfs_param": "${ssr_obfs_param}"
-}
-EOF
-}
-
-ssr2json ${SSR} ${SSR_OBFS_PARAM} > ${ssr_conf}
-
+ss2_port=8488
 
 # Gen kcp_conf
 kcp2cmd(){
@@ -53,25 +32,6 @@ kcp2cmd(){
 kcp_cmd=$(kcp2cmd ${KCP} ${KCP_EXTRA_ARGS})
 
 
-# Gen supervisord.conf
-cat > ${cmd_conf} <<EOF
-[supervisord]
-nodaemon=true
+( ${ssr_cli} -s ${SS}@:8488 -verbose ) &
 
-[program:shadowsocks]
-command=/usr/bin/python ${ssr_cli} -c ${ssr_conf}
-autorestart=true
-redirect_stderr=true
-stdout_logfile=/dev/stdout
-stdout_logfile_maxbytes=0
-
-[program:kcptun]
-command=${kcp_cli} -t 127.0.0.1:${ssr_port} -l :1${ssr_port} ${kcp_cmd}
-autorestart=true
-redirect_stderr=true
-stdout_logfile=/dev/stdout
-stdout_logfile_maxbytes=0
-
-EOF
-
-/usr/bin/supervisord -c ${cmd_conf}
+${kcp_cli} -t 127.0.0.1:${ss2_port} -l :1${ss2_port} ${kcp_cmd}
